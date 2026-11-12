@@ -46,8 +46,54 @@ async function getCustomerById(req, res) {
         });
     }
 }
+// CREATE A NEW CUSTOMER
+
+async function createCustomer(req, res) {
+    try {
+        const { full_name, phone, email } = req.body;
+
+        // Validate required information.
+        if (!full_name || !full_name.trim()) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Full name is required.'
+            });
+        }
+
+        // Insert the customer into PostgreSQL.
+        const result = await pool.query(
+            `INSERT INTO customers (full_name, phone, email)
+             VALUES ($1, $2, $3)
+             RETURNING *`,
+            [full_name.trim(), phone || null, email || null]
+        );
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Customer created successfully.',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to create customer:', error.message);
+
+        // Handle duplicate email.
+        if (error.code === '23505') {
+            return res.status(409).json({
+                status: 'error',
+                message: 'Email already exists.'
+            });
+        }
+
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
 
 module.exports = {
     getAllCustomers,
-    getCustomerById
+    getCustomerById,
+    createCustomer
 };
