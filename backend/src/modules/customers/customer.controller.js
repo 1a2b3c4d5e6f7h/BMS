@@ -146,12 +146,59 @@ async function updateCustomer(req, res) {
         });
     }
 }
+//....Delete a customer by ID........!!!
+
+async function deleteCustomer(req, res) {
+    try {
+        const { id } = req.params;
+       
+
+        const result = await pool.query(
+            `DELETE FROM customers
+             WHERE customer_id = $1
+             RETURNING *`,
+            [id]
+        );
+   
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Customer not found.'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Customer deleted successfully.',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to delete customer:', error.message);
+
+        // PostgreSQL foreign-key violation.
+        if (error.code === '23503') {
+            return res.status(409).json({
+                status: 'error',
+                message: 'Cannot delete customer because associated records exist.'
+            });
+        }
+
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
 
 //......... Exported Controller Functions.........!!!
 module.exports = {
     getAllCustomers,
     getCustomerById,
     createCustomer,
-    updateCustomer
+    updateCustomer,
+    deleteCustomer
 
 };
