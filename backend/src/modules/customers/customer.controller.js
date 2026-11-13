@@ -15,7 +15,7 @@ async function getAllCustomers(req, res) {
         });
     }
 }
-// Get a specific customer by ID
+// ...........Get a specific customer by ID.......!!!!
 async function getCustomerById(req, res) {
     try {
         const { id } = req.params;
@@ -46,13 +46,13 @@ async function getCustomerById(req, res) {
         });
     }
 }
-// CREATE A NEW CUSTOMER
+        // ....CREATE A NEW CUSTOMER.....!!!
 
 async function createCustomer(req, res) {
     try {
         const { full_name, phone, email } = req.body;
 
-        // Validate required information.
+        //.... Validate required information..........
         if (!full_name || !full_name.trim()) {
             return res.status(400).json({
                 status: 'error',
@@ -60,7 +60,7 @@ async function createCustomer(req, res) {
             });
         }
 
-        // Insert the customer into PostgreSQL.
+        //....... Insert the customer into PostgreSQL.......
         const result = await pool.query(
             `INSERT INTO customers (full_name, phone, email)
              VALUES ($1, $2, $3)
@@ -77,7 +77,62 @@ async function createCustomer(req, res) {
     } catch (error) {
         console.error('Failed to create customer:', error.message);
 
-        // Handle duplicate email.
+        // ......Handle duplicate email........
+        if (error.code === '23505') {
+            return res.status(409).json({
+                status: 'error',
+                message: 'Email already exists.'
+            });
+        }
+
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+// ......update a customer by ID........!!!
+
+async function updateCustomer(req, res) {
+    try {
+        const { id } = req.params;
+        const { full_name, phone, email } = req.body;
+
+        // Validate required information.
+        if (!full_name || !full_name.trim()) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Full name is required.'
+            });
+        }
+
+        const result = await pool.query(
+            `UPDATE customers
+             SET full_name = $1,
+                 phone = $2,
+                 email = $3
+             WHERE customer_id = $4
+             RETURNING *`,
+            [full_name.trim(), phone || null, email || null, id]
+        );
+
+        // Check whether the customer exists.
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Customer not found.'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Customer updated successfully.',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to update customer:', error.message);
+
         if (error.code === '23505') {
             return res.status(409).json({
                 status: 'error',
@@ -92,8 +147,11 @@ async function createCustomer(req, res) {
     }
 }
 
+//......... Exported Controller Functions.........!!!
 module.exports = {
     getAllCustomers,
     getCustomerById,
-    createCustomer
+    createCustomer,
+    updateCustomer
+
 };

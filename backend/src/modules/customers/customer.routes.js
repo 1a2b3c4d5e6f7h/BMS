@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
+
+//.....Import controller functions for customer operations........
 const {
     getAllCustomers,
     getCustomerById,
-    createCustomer
+    createCustomer,
+    updateCustomer
 } = require('./customer.controller');
 
-
+//......Define routes for customer-related operations........
 router.get('/', getAllCustomers);
 router.get('/:id', getCustomerById);
 router.post('/', createCustomer);
-
+router.put('/:id', updateCustomer);
 module.exports = router;
