@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
-router.get('/', (req, res) => {
-    res.json({
-        message: 'Accounts API is running.'
-    });
-});
+//........Import the account controller........!!!!
+ const  { 
+    createAccount,
+    getAllAccounts,
+    getAccountById,
+    updateAccountStatus
+} = require('./account.controller');
+
+router.post('/', createAccount);
+router.get('/', getAllAccounts);
+router.get('/:account_id', getAccountById);
+router.patch('/:account_id/status', updateAccountStatus);
 
 module.exports = router;
