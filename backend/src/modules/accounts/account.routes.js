@@ -5,12 +5,14 @@ const router = express.Router();
     createAccount,
     getAllAccounts,
     getAccountById,
-    updateAccountStatus
+    updateAccountStatus,
+    deposit
 } = require('./account.controller');
 
 router.post('/', createAccount);
 router.get('/', getAllAccounts);
 router.get('/:account_id', getAccountById);
 router.patch('/:account_id/status', updateAccountStatus);
+router.post('/:id/deposit', deposit);
 
 module.exports = router;
