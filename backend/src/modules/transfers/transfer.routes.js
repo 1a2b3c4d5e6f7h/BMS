@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-router.get('/', (req, res) => {
-    res.json({
-        message: 'Transfers API is running.'
-    });
-});
+
+const {
+    createTransfer
+} = require('./transfer.controller');
+
+router.post('/', createTransfer);
 
 module.exports = router;
