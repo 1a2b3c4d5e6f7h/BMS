@@ -308,6 +308,149 @@ async function deposit(req, res) {
         }
     }
 }
+//........withdraw from an account........!!!!
+
+
+async function withdraw(req, res) {
+    let client;
+    let transactionStarted = false;
+
+    try {
+        const { id } = req.params;
+        const { amount } = req.body ?? {};
+
+        // 1. Validate account ID.
+        if (!/^[1-9]\d*$/.test(id)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid account ID.'
+            });
+        }
+
+        // 2. Validate withdrawal amount.
+        const amountText =
+            typeof amount === 'string'
+                ? amount.trim()
+                : typeof amount === 'number' && Number.isFinite(amount)
+                    ? String(amount)
+                    : '';
+
+        if (
+            !/^\d+(\.\d{1,2})?$/.test(amountText) ||
+            !Number.isFinite(Number(amountText)) ||
+            Number(amountText) <= 0
+        ) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Withdrawal amount must be a valid positive number with at most two decimal places.'
+            });
+        }
+
+        // 3. Get a database connection.
+        client = await pool.connect();
+
+        // 4. Start database transaction.
+        await client.query('BEGIN');
+        transactionStarted = true;
+
+        // 5. Find and lock the account.
+        const accountResult = await client.query(
+            `SELECT account_id, status, balance
+             FROM bank_accounts
+             WHERE account_id = $1
+             FOR UPDATE`,
+            [id]
+        );
+
+        if (accountResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            transactionStarted = false;
+
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        const account = accountResult.rows[0];
+
+        // 6. Only ACTIVE accounts can withdraw.
+        if (account.status !== 'ACTIVE') {
+            await client.query('ROLLBACK');
+            transactionStarted = false;
+
+            return res.status(400).json({
+                status: 'error',
+                message: 'Withdrawals are allowed only from active accounts.'
+            });
+        }
+
+        // 7. Check available balance.
+        if (Number(amountText) > Number(account.balance)) {
+            await client.query('ROLLBACK');
+            transactionStarted = false;
+
+            return res.status(409).json({
+                status: 'error',
+                message: 'Insufficient balance. The withdrawal amount cannot exceed the available balance.'
+            });
+        }
+
+        // 8. Decrease account balance.
+        const balanceResult = await client.query(
+            `UPDATE bank_accounts
+             SET balance = balance - $1
+             WHERE account_id = $2
+             RETURNING *`,
+            [amountText, id]
+        );
+
+        // 9. Record withdrawal history.
+        const transactionResult = await client.query(
+            `INSERT INTO transactions
+                (account_id, transaction_type, amount, status)
+             VALUES ($1, 'WITHDRAWAL', $2, 'COMPLETED')
+             RETURNING *`,
+            [id, amountText]
+        );
+
+        // 10. Commit both changes.
+        await client.query('COMMIT');
+        transactionStarted = false;
+
+        return res.status(201).json({
+            status: 'success',
+            message: 'Withdrawal completed successfully.',
+            data: {
+                account: balanceResult.rows[0],
+                transaction: transactionResult.rows[0]
+            }
+        });
+
+    } catch (error) {
+        if (client && transactionStarted) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackError) {
+                console.error('Rollback failed:', rollbackError.message);
+            }
+        }
+
+        console.error('Failed to process withdrawal:', error.message);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+}
+
+
 
 //........Export the controller functions........!!!!
 module.exports = {
@@ -315,6 +458,7 @@ module.exports = {
     getAllAccounts,
     getAccountById,
     updateAccountStatus,
-    deposit
+    deposit,
+    withdraw
 };
 
