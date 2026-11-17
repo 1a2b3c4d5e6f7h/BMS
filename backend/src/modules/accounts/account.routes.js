@@ -7,7 +7,8 @@ const router = express.Router();
     getAccountById,
     updateAccountStatus,
     deposit,
-    withdraw
+    withdraw,
+    checkBalance
 } = require('./account.controller');
 
 router.post('/', createAccount);
@@ -16,4 +17,5 @@ router.get('/:account_id', getAccountById);
 router.patch('/:account_id/status', updateAccountStatus);
 router.post('/:id/deposit', deposit);
 router.post('/:id/withdraw', withdraw);
+router.get('/:id/balance', checkBalance);
 module.exports = router;

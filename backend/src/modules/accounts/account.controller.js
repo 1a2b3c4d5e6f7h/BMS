@@ -450,6 +450,51 @@ async function withdraw(req, res) {
     }
 }
 
+//.....check availabe Balance........
+
+async function checkBalance(req, res) {
+    try {
+        const { id } = req.params;
+
+        // 1. Validate account ID.
+        if (!/^[1-9]\d*$/.test(id)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid account ID.'
+            });
+        }
+
+        // 2. Retrieve account balance.
+        const result = await pool.query(
+            `SELECT account_id, account_number, balance
+             FROM bank_accounts
+             WHERE account_id = $1`,
+            [id]
+        );
+
+        // 3. Check whether account exists.
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        // 4. Return account balance.
+        return res.status(200).json({
+            status: 'success',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to retrieve account balance:', error.message);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
 
 
 //........Export the controller functions........!!!!
@@ -459,6 +504,7 @@ module.exports = {
     getAccountById,
     updateAccountStatus,
     deposit,
-    withdraw
+    withdraw,
+    checkBalance
 };
 
