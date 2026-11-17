@@ -495,9 +495,65 @@ async function checkBalance(req, res) {
         });
     }
 }
+//....Transaction history can be implemented here ......
 
+async function getAccountTransactions(req, res) {
+    try {
+        const { id } = req.params;
 
-//........Export the controller functions........!!!!
+        // 1. Validate account ID.
+        if (!/^[1-9]\d*$/.test(id)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid account ID.'
+            });
+        }
+
+        // 2. Check whether the account exists.
+        const accountResult = await pool.query(
+            `SELECT account_id
+             FROM bank_accounts
+             WHERE account_id = $1`,
+            [id]
+        );
+
+        if (accountResult.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        // 3. Retrieve account transaction history.
+        const transactionResult = await pool.query(
+            `SELECT *
+             FROM transactions
+             WHERE account_id = $1
+             ORDER BY transaction_id DESC`,
+            [id]
+        );
+
+        // 4. Return transaction history.
+        return res.status(200).json({
+            status: 'success',
+            count: transactionResult.rows.length,
+            data: transactionResult.rows
+        });
+
+    } catch (error) {
+        console.error(
+            'Failed to retrieve account transactions:',
+            error.message
+        );
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
+// //........Export the controller functions........!!!!
 module.exports = {
     createAccount,
     getAllAccounts,
@@ -505,6 +561,7 @@ module.exports = {
     updateAccountStatus,
     deposit,
     withdraw,
-    checkBalance
+    checkBalance,
+    getAccountTransactions
 };
 

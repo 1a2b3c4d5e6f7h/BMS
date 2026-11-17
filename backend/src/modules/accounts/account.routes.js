@@ -8,7 +8,8 @@ const router = express.Router();
     updateAccountStatus,
     deposit,
     withdraw,
-    checkBalance
+    checkBalance,
+    getAccountTransactions
 } = require('./account.controller');
 
 router.post('/', createAccount);
@@ -18,4 +19,5 @@ router.patch('/:account_id/status', updateAccountStatus);
 router.post('/:id/deposit', deposit);
 router.post('/:id/withdraw', withdraw);
 router.get('/:id/balance', checkBalance);
+router.get('/:id/transactions', getAccountTransactions);
 module.exports = router;
