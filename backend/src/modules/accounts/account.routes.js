@@ -9,7 +9,8 @@ const router = express.Router();
     deposit,
     withdraw,
     checkBalance,
-    getAccountTransactions
+    getAccountTransactions,
+    
 } = require('./account.controller');
 
 router.post('/', createAccount);

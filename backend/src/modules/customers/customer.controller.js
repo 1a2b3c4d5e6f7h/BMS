@@ -191,7 +191,48 @@ async function deleteCustomer(req, res) {
         });
     }
 }
+//......customer-account relationship endpoint api.....
+async function getCustomerAccounts(req, res) {
+    const { id } = req.params;
 
+    try {
+        // Check whether the customer exists.
+        const customerResult = await pool.query(
+            'SELECT customer_id FROM customers WHERE customer_id = $1',
+            [id]
+        );
+
+        if (customerResult.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Customer not found.'
+            });
+        }
+
+        // Retrieve all accounts belonging to the customer.
+        const result = await pool.query(
+            `SELECT *
+             FROM bank_accounts
+             WHERE customer_id = $1
+             ORDER BY account_id`,
+            [id]
+        );
+
+        return res.status(200).json({
+            status: 'success',
+            count: result.rows.length,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Failed to retrieve customer accounts:', error.message);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
 
 //......... Exported Controller Functions.........!!!
 module.exports = {
@@ -199,6 +240,7 @@ module.exports = {
     getCustomerById,
     createCustomer,
     updateCustomer,
-    deleteCustomer
+    deleteCustomer,
+    getCustomerAccounts
 
 };
