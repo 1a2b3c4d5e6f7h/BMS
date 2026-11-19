@@ -84,6 +84,23 @@ async function getAllAccounts(req, res) {
 
 const validStatuses = ['ACTIVE', 'FROZEN', 'CLOSED'];
 const validAccountTypes = ['SAVINGS', 'CURRENT'];
+const page = Number(req.query.page ?? 1);
+const limit = Number(req.query.limit ?? 10);
+
+if (
+    !Number.isInteger(page) ||
+    !Number.isInteger(limit) ||
+    page < 1 ||
+    limit < 1 ||
+    limit > 100
+) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Page must be a positive integer and limit must be between 1 and 100.'
+    });
+}
+
+const offset = (page - 1) * limit;
 
 if (status && !validStatuses.includes(status)) {
     return res.status(400).json({
@@ -113,14 +130,15 @@ const result = await pool.query(
        AND ($2::VARCHAR IS NULL OR account_type = $2)
        AND ($3::BIGINT IS NULL OR customer_id = $3)
        AND ($4::VARCHAR IS NULL OR account_number LIKE $4)
-     ORDER BY account_id`,
-     
+     ORDER BY account_id ASC
+     LIMIT $5 OFFSET $6`,
     [
-        req.query.status || null,
-        req.query.account_type || null,
-        req.query.customer_id || null,
-        account_number ? `%${account_number}%` : null
-
+        status || null,
+        account_type || null,
+        customer_id || null,
+        account_number ? `%${account_number}%` : null,
+        limit,
+        offset
     ]
 );
         res.status(200).json({
