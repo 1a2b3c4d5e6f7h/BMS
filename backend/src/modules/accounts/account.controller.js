@@ -80,10 +80,47 @@ async function createAccount(req, res) {
 //........getAllAccounts........!!!!
 async function getAllAccounts(req, res) {
     try {
-        const result = await pool.query(
-            'SELECT * FROM bank_accounts ORDER BY account_id'
-        );
+        const { status, account_type, customer_id, account_number } = req.query;
 
+const validStatuses = ['ACTIVE', 'FROZEN', 'CLOSED'];
+const validAccountTypes = ['SAVINGS', 'CURRENT'];
+
+if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Invalid account status.'
+    });
+}
+
+if (account_type && !validAccountTypes.includes(account_type)) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Invalid account type.'
+    });
+}
+
+if (customer_id && !/^[1-9]\d*$/.test(customer_id)) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Invalid customer ID.'
+    });
+}
+       const result = await pool.query(
+    `SELECT *
+     FROM bank_accounts
+     WHERE ($1::VARCHAR IS NULL OR status = $1)
+       AND ($2::VARCHAR IS NULL OR account_type = $2)
+       AND ($3::BIGINT IS NULL OR customer_id = $3)
+       AND ($4::VARCHAR IS NULL OR account_number LIKE $4)
+     ORDER BY account_id`,
+    [
+        req.query.status || null,
+        req.query.account_type || null,
+        req.query.customer_id || null,
+        account_number ? `%${account_number}%` : null
+
+    ]
+);
         res.status(200).json({
             status: 'success',
             count: result.rows.length,
