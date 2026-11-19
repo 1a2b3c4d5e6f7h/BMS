@@ -10,15 +10,18 @@ const router = express.Router();
     withdraw,
     checkBalance,
     getAccountTransactions,
+    getAccountSummary
     
 } = require('./account.controller');
 
 router.post('/', createAccount);
 router.get('/', getAllAccounts);
+router.get('/:id/summary', getAccountSummary);
 router.get('/:account_id', getAccountById);
 router.patch('/:account_id/status', updateAccountStatus);
 router.post('/:id/deposit', deposit);
 router.post('/:id/withdraw', withdraw);
 router.get('/:id/balance', checkBalance);
 router.get('/:id/transactions', getAccountTransactions);
+
 module.exports = router;

@@ -552,6 +552,80 @@ async function getAccountTransactions(req, res) {
         });
     }
 }
+//.......A customer bank account summarry.....
+async function getAccountSummary(req, res) {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                ba.account_id,
+                ba.account_number,
+                ba.account_type,
+                ba.status,
+                ba.balance,
+                c.customer_id,
+                c.full_name,
+
+                (
+                    SELECT COUNT(*)
+                    FROM transactions AS t
+                    WHERE t.account_id = ba.account_id
+                ) AS transaction_count,
+
+                (
+                    SELECT t.transaction_type
+                    FROM transactions AS t
+                    WHERE t.account_id = ba.account_id
+                    ORDER BY t.created_at DESC, t.transaction_id DESC
+                    LIMIT 1
+                ) AS last_transaction_type,
+
+                (
+                    SELECT t.amount
+                    FROM transactions AS t
+                    WHERE t.account_id = ba.account_id
+                    ORDER BY t.created_at DESC, t.transaction_id DESC
+                    LIMIT 1
+                ) AS last_transaction_amount,
+
+                (
+                    SELECT t.created_at
+                    FROM transactions AS t
+                    WHERE t.account_id = ba.account_id
+                    ORDER BY t.created_at DESC, t.transaction_id DESC
+                    LIMIT 1
+                ) AS last_transaction_date
+
+            FROM bank_accounts AS ba
+            INNER JOIN customers AS c
+                ON ba.customer_id = c.customer_id
+            WHERE ba.account_id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Failed to retrieve account summary:', error.message);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
 
 // //........Export the controller functions........!!!!
 module.exports = {
@@ -562,6 +636,7 @@ module.exports = {
     deposit,
     withdraw,
     checkBalance,
-    getAccountTransactions
+    getAccountTransactions,
+    getAccountSummary
 };
 
