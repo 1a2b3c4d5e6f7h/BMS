@@ -105,7 +105,8 @@ if (customer_id && !/^[1-9]\d*$/.test(customer_id)) {
         message: 'Invalid customer ID.'
     });
 }
-       const result = await pool.query(
+       
+const result = await pool.query(
     `SELECT *
      FROM bank_accounts
      WHERE ($1::VARCHAR IS NULL OR status = $1)
@@ -113,6 +114,7 @@ if (customer_id && !/^[1-9]\d*$/.test(customer_id)) {
        AND ($3::BIGINT IS NULL OR customer_id = $3)
        AND ($4::VARCHAR IS NULL OR account_number LIKE $4)
      ORDER BY account_id`,
+     
     [
         req.query.status || null,
         req.query.account_type || null,
