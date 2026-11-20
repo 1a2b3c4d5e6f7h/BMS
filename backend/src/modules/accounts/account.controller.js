@@ -141,11 +141,36 @@ const result = await pool.query(
         offset
     ]
 );
-        res.status(200).json({
-            status: 'success',
-            count: result.rows.length,
-            data: result.rows
-        });
+
+//..........
+const countResult = await pool.query(
+    `SELECT COUNT(*)
+     FROM bank_accounts
+     WHERE ($1::VARCHAR IS NULL OR status = $1)
+       AND ($2::VARCHAR IS NULL OR account_type = $2)
+       AND ($3::BIGINT IS NULL OR customer_id = $3)
+       AND ($4::VARCHAR IS NULL OR account_number LIKE $4)`,
+    [
+        status || null,
+        account_type || null,
+        customer_id || null,
+        account_number ? `%${account_number}%` : null
+    ]
+);
+const totalRecords = Number(countResult.rows[0].count);
+const totalPages = Math.ceil(totalRecords / limit);
+//......
+return res.status(200).json({
+    status: 'success',
+    pagination: {
+        currentPage: page,
+        limit: limit,
+        totalRecords: totalRecords,
+        totalPages: totalPages
+    },
+    count: result.rows.length,
+    data: result.rows
+});
 
     } catch (error) {
         console.error('Failed to retrieve accounts:', error.message);
