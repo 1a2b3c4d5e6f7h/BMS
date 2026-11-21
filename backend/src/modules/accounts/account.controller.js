@@ -83,9 +83,30 @@ async function getAllAccounts(req, res) {
         const { status, account_type, customer_id, account_number } = req.query;
 
 const validStatuses = ['ACTIVE', 'FROZEN', 'CLOSED'];
+const order = (req.query.order || 'ASC').toUpperCase();
 const validAccountTypes = ['SAVINGS', 'CURRENT'];
 const page = Number(req.query.page ?? 1);
 const limit = Number(req.query.limit ?? 10);
+const allowedSortColumns = [
+    'account_id',
+    'account_number',
+    'balance',
+    'created_at'
+];
+
+const sortBy = req.query.sort_by || 'account_id';
+if (!allowedSortColumns.includes(sortBy)) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Invalid sorting column.'
+    });
+}
+if (!['ASC', 'DESC'].includes(order)) {
+    return res.status(400).json({
+        status: 'error',
+        message: 'Invalid sorting direction.'
+    });
+}
 
 if (
     !Number.isInteger(page) ||
@@ -130,7 +151,7 @@ const result = await pool.query(
        AND ($2::VARCHAR IS NULL OR account_type = $2)
        AND ($3::BIGINT IS NULL OR customer_id = $3)
        AND ($4::VARCHAR IS NULL OR account_number LIKE $4)
-     ORDER BY account_id ASC
+     ORDER BY ${sortBy} ${order}
      LIMIT $5 OFFSET $6`,
     [
         status || null,
@@ -160,6 +181,7 @@ const countResult = await pool.query(
 const totalRecords = Number(countResult.rows[0].count);
 const totalPages = Math.ceil(totalRecords / limit);
 //......
+
 return res.status(200).json({
     status: 'success',
     pagination: {
