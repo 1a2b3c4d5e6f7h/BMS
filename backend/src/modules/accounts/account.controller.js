@@ -729,7 +729,160 @@ async function getAccountSummary(req, res) {
         });
     }
 }
+//.......A customer bank account statement.....
 
+
+async function getAccountStatement(req, res) {
+    const { id } = req.params;
+    const { from, to } = req.query;
+
+    // Validate account ID
+    if (!/^[1-9]\d*$/.test(id)) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Invalid account ID.'
+        });
+    }
+
+    // Validate required dates
+    if (!from || !to) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Both from and to dates are required.'
+        });
+    }
+
+    // Validate date format and actual calendar dates
+    const isValidDate = (date) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return false;
+        }
+
+        const parsed = new Date(`${date}T00:00:00.000Z`);
+
+        return !Number.isNaN(parsed.getTime()) &&
+            parsed.toISOString().slice(0, 10) === date;
+    };
+
+    if (!isValidDate(from) || !isValidDate(to)) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Dates must be valid YYYY-MM-DD dates.'
+        });
+    }
+
+    if (from > to) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'The from date cannot be later than the to date.'
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        // Retrieve account information
+        const accountResult = await client.query(
+            `SELECT account_id, account_number, account_type,
+                    status, balance
+             FROM bank_accounts
+             WHERE account_id = $1`,
+            [id]
+        );
+
+        if (accountResult.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        // Calculate opening balance
+        const openingResult = await client.query(
+            `SELECT COALESCE(
+                SUM(
+                    CASE
+                        WHEN transaction_type IN
+                            ('DEPOSIT', 'TRANSFER_IN')
+                            THEN amount
+                        WHEN transaction_type IN
+                            ('WITHDRAWAL', 'TRANSFER_OUT')
+                            THEN -amount
+                    END
+                ), 0
+            ) AS opening_balance
+            FROM transactions
+            WHERE account_id = $1
+              AND created_at < $2::DATE`,
+            [id, from]
+        );
+        const movementResult = await client.query(
+    `SELECT COALESCE(
+        SUM(
+            CASE
+                WHEN transaction_type IN ('DEPOSIT', 'TRANSFER_IN')
+                    THEN amount
+                WHEN transaction_type IN ('WITHDRAWAL', 'TRANSFER_OUT')
+                    THEN -amount
+            END
+        ), 0
+    ) AS net_movement
+    FROM transactions
+    WHERE account_id = $1
+      AND created_at >= $2::DATE
+      AND created_at < ($3::DATE + INTERVAL '1 day')`,
+    [id, from, to]
+);
+
+        // Retrieve transactions within statement period
+        const transactionsResult = await client.query(
+            `SELECT transaction_id, transfer_id,
+                    transaction_type, amount, status, created_at
+             FROM transactions
+             WHERE account_id = $1
+               AND created_at >= $2::DATE
+               AND created_at < ($3::DATE + INTERVAL '1 day')
+             ORDER BY created_at ASC, transaction_id ASC`,
+            [id, from, to]
+        );
+
+      const openingBalance = openingResult.rows[0].opening_balance;
+
+const netMovement = movementResult.rows[0].net_movement;
+
+const closingResult = await client.query(
+    `SELECT $1::NUMERIC + $2::NUMERIC AS closing_balance`,
+    [openingBalance, netMovement]
+);
+
+const closingBalance = closingResult.rows[0].closing_balance;
+
+        return res.status(200).json({
+            status: 'success',
+            data: {
+                account: accountResult.rows[0],
+                statement_period: {
+                    from,
+                    to
+                },
+                opening_balance: openingBalance,
+                transactions: transactionsResult.rows,
+                closing_balance: closingBalance
+            }
+        });
+
+    } catch (error) {
+        console.error('Failed to retrieve account statement:', error);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+
+    } finally {
+        client.release();
+    }
+}
 
 // //........Export the controller functions........!!!!
 module.exports = {
@@ -741,6 +894,7 @@ module.exports = {
     withdraw,
     checkBalance,
     getAccountTransactions,
-    getAccountSummary
+    getAccountSummary,
+    getAccountStatement
 };
 

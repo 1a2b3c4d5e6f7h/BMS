@@ -10,7 +10,8 @@ const router = express.Router();
     withdraw,
     checkBalance,
     getAccountTransactions,
-    getAccountSummary
+    getAccountSummary,
+    getAccountStatement
     
 } = require('./account.controller');
 
@@ -23,5 +24,5 @@ router.post('/:id/deposit', deposit);
 router.post('/:id/withdraw', withdraw);
 router.get('/:id/balance', checkBalance);
 router.get('/:id/transactions', getAccountTransactions);
-
+router.get('/:id/statement', getAccountStatement);
 module.exports = router;
