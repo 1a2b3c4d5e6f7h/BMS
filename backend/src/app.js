@@ -4,12 +4,13 @@ const pool = require('./config/db');
 const customerRoutes = require('./modules/customers/customer.routes');
 const accountRoutes = require('./modules/accounts/account.routes'); 
 const transferRoutes = require('./modules/transfers/transfer.routes');
-
+const authRoutes = require('./modules/auth/auth.routes');
 
 const app = express();
 
 app.use(express.json());
 app.use('/api/customers', customerRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transfers', transferRoutes);
 // Basic API health check.
