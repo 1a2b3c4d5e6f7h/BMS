@@ -1,6 +1,7 @@
 
 const pool = require('../../config/db');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 async function register(req, res) {
     const { full_name, phone, email, password } = req.body;
@@ -103,5 +104,100 @@ async function register(req, res) {
         client.release();
     }
 }
+//.....Login Path.....
 
-module.exports = { register };
+async function login(req, res) {
+    const { email, password } = req.body;
+
+    // 1. Validate input
+    if (
+        typeof email !== 'string' ||
+        typeof password !== 'string' ||
+        !email.trim() ||
+        !password
+    ) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Email and password are required.'
+        });
+    }
+
+    try {
+        // 2. Find user by email
+        const result = await pool.query(
+            `SELECT user_id, customer_id, email,
+                    password_hash, role, status
+             FROM users
+             WHERE email = $1`,
+            [email.trim().toLowerCase()]
+        );
+
+        const user = result.rows[0];
+
+        // 3. Verify credentials
+        if (!user) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Invalid email or password.'
+            });
+        }
+
+        const passwordMatches = await bcrypt.compare(
+            password,
+            user.password_hash
+        );
+
+        if (!passwordMatches) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Invalid email or password.'
+            });
+        }
+
+        // 4. Check account status
+        if (user.status !== 'ACTIVE') {
+            return res.status(403).json({
+                status: 'error',
+                message: 'Your account is disabled.'
+            });
+        }
+
+        // 5. Generate JWT
+        const token = jwt.sign(
+            {
+                userId: user.user_id,
+                customerId: user.customer_id,
+                role: user.role
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+            }
+        );
+
+        // 6. Return token and safe user information
+        return res.status(200).json({
+            status: 'success',
+            message: 'Login successful.',
+            data: {
+                token,
+                user: {
+                    user_id: user.user_id,
+                    customer_id: user.customer_id,
+                    email: user.email,
+                    role: user.role
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Login failed:', error);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
+module.exports = { register, login };
