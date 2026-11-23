@@ -12,17 +12,20 @@ const router = express.Router();
     getAccountTransactions,
     getAccountSummary,
     getAccountStatement
-    
 } = require('./account.controller');
+const {
+    authenticateToken,
+    authorizeAccountOwner
+} = require('../auth/auth.middleware');
 
 router.post('/', createAccount);
 router.get('/', getAllAccounts);
-router.get('/:id/summary', getAccountSummary);
-router.get('/:account_id', getAccountById);
-router.patch('/:account_id/status', updateAccountStatus);
-router.post('/:id/deposit', deposit);
-router.post('/:id/withdraw', withdraw);
-router.get('/:id/balance', checkBalance);
-router.get('/:id/transactions', getAccountTransactions);
-router.get('/:id/statement', getAccountStatement);
+router.get('/:id/summary', getAccountSummary, authenticateToken, authorizeAccountOwner);
+router.get('/:account_id', getAccountById, authenticateToken, authorizeAccountOwner);
+router.patch('/:account_id/status', updateAccountStatus, authenticateToken, authorizeAccountOwner);
+router.post('/:id/deposit', deposit, authenticateToken, authorizeAccountOwner);
+router.post('/:id/withdraw', withdraw, authenticateToken, authorizeAccountOwner);
+router.get('/:id/balance', checkBalance, authenticateToken, authorizeAccountOwner);
+router.get('/:id/transactions', getAccountTransactions, authenticateToken, authorizeAccountOwner);
+router.get('/:id/statement', getAccountStatement, authenticateToken, authorizeAccountOwner);
 module.exports = router;

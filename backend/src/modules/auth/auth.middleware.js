@@ -1,6 +1,7 @@
 
 const jwt = require('jsonwebtoken');
-
+const pool = require('../../config/db');
+// Middleware to authenticate JWT token and attach user info to request
 function authenticateToken(req, res, next) {
     // 1. Retrieve Authorization header
     const authHeader = req.headers.authorization;
@@ -9,9 +10,7 @@ function authenticateToken(req, res, next) {
     const token = authHeader?.startsWith('Bearer ')
         ? authHeader.slice(7).trim()
         : null;
-        console.log('Token received:', Boolean(token));
-console.log('Token parts:', token ? token.split('.').length : 0);
-
+       
     // 3. Reject requests without a token
     if (!token) {
         return res.status(401).json({
@@ -19,12 +18,7 @@ console.log('Token parts:', token ? token.split('.').length : 0);
             message: 'Authentication required.'
         });
     }
-console.log('Token length:', token.length);
-console.log('Token starts correctly:', token.startsWith('eyJ'));
-console.log('Token contains whitespace:', /\s/.test(token));
-console.log('Token format:', 
-    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)
-);
+
     // 4. Verify token
     try {
         const decoded = jwt.verify(
@@ -47,5 +41,58 @@ console.log('Token format:',
     });
 }
 }
+// middleware to ensure the authenticated user is the owner of the account being accessed
+async function authorizeAccountOwner(req, res, next) {
+    const { id } = req.params;
+    const customerId = req.user.customerId;
 
-module.exports = { authenticateToken };
+    // Validate account ID
+    if (!/^[1-9]\d*$/.test(id)) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Invalid account ID.'
+        });
+    }
+
+    // Ensure the authenticated user is a customer
+    if (!customerId) {
+        return res.status(403).json({
+            status: 'error',
+            message: 'Customer access required.'
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT account_id
+             FROM bank_accounts
+             WHERE account_id = $1
+               AND customer_id = $2`,
+            [id, customerId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Account not found.'
+            });
+        }
+
+        next();
+
+    } catch (error) {
+        console.error('Account ownership verification failed:', error);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
+module.exports = {
+    authenticateToken,
+    authorizeAccountOwner
+};
+
+
