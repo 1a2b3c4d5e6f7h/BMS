@@ -1,7 +1,9 @@
+
 const express = require('express');
 const router = express.Router();
-//........Import the account controller........!!!!
- const  { 
+
+// Import account controllers
+const {
     createAccount,
     getAllAccounts,
     getAccountById,
@@ -13,19 +15,76 @@ const router = express.Router();
     getAccountSummary,
     getAccountStatement
 } = require('./account.controller');
+
+// Import authentication and authorization middleware
 const {
     authenticateToken,
     authorizeAccountOwner
 } = require('../auth/auth.middleware');
 
+// Account creation and listing need separate role-based protection.
+// Do not leave these public in the final implementation.
 router.post('/', createAccount);
 router.get('/', getAllAccounts);
-router.get('/:id/summary', getAccountSummary, authenticateToken, authorizeAccountOwner);
-router.get('/:account_id', getAccountById, authenticateToken, authorizeAccountOwner);
-router.patch('/:account_id/status', updateAccountStatus, authenticateToken, authorizeAccountOwner);
-router.post('/:id/deposit', deposit, authenticateToken, authorizeAccountOwner);
-router.post('/:id/withdraw', withdraw, authenticateToken, authorizeAccountOwner);
-router.get('/:id/balance', checkBalance, authenticateToken, authorizeAccountOwner);
-router.get('/:id/transactions', getAccountTransactions, authenticateToken, authorizeAccountOwner);
-router.get('/:id/statement', getAccountStatement, authenticateToken, authorizeAccountOwner);
+
+// Protected customer account routes
+router.get(
+    '/:id/summary',
+    authenticateToken,
+    authorizeAccountOwner,
+    getAccountSummary
+);
+
+router.get(
+    '/:id',
+    authenticateToken,
+    authorizeAccountOwner,
+    getAccountById
+);
+
+router.get(
+    '/:id/balance',
+    authenticateToken,
+    authorizeAccountOwner,
+    checkBalance
+);
+
+router.get(
+    '/:id/transactions',
+    authenticateToken,
+    authorizeAccountOwner,
+    getAccountTransactions
+);
+
+router.get(
+    '/:id/statement',
+    authenticateToken,
+    authorizeAccountOwner,
+    getAccountStatement
+);
+
+// These operations also require ownership verification.
+// Additional business rules remain in their controllers.
+router.post(
+    '/:id/deposit',
+    authenticateToken,
+    authorizeAccountOwner,
+    deposit
+);
+
+router.post(
+    '/:id/withdraw',
+    authenticateToken,
+    authorizeAccountOwner,
+    withdraw
+);
+
+// Account status changes should eventually require an ADMIN role,
+// not ordinary customer ownership.
+router.patch(
+    '/:id/status',
+    authenticateToken,
+    updateAccountStatus
+);
+
 module.exports = router;
