@@ -19,13 +19,25 @@ const {
 // Import authentication and authorization middleware
 const {
     authenticateToken,
-    authorizeAccountOwner
+    authorizeAccountOwner,
+    authorizeRoles
 } = require('../auth/auth.middleware');
 
 // Account creation and listing need separate role-based protection.
-// Do not leave these public in the final implementation.
-router.post('/', createAccount);
-router.get('/', getAllAccounts);
+// Only administrators can create accounts
+router.post(
+    '/',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    createAccount
+);
+// Only employees and administrators can view all accounts
+router.get(
+    '/',
+    authenticateToken,
+    authorizeRoles('EMPLOYEE', 'ADMIN'),
+    getAllAccounts
+);
 
 // Protected customer account routes
 router.get(
@@ -84,6 +96,7 @@ router.post(
 router.patch(
     '/:id/status',
     authenticateToken,
+    authorizeRoles('admin'),
     updateAccountStatus
 );
 

@@ -89,10 +89,25 @@ async function authorizeAccountOwner(req, res, next) {
         });
     }
 }
+// Middleware to authorize based on user roles
+
+function authorizeRoles(...allowedRoles) {
+    return (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'You do not have permission to perform this operation.'
+            });
+        }
+
+        next();
+    };
+}
 
 module.exports = {
     authenticateToken,
-    authorizeAccountOwner
+    authorizeAccountOwner,
+    authorizeRoles
 };
 
 
