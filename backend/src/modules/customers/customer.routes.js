@@ -13,7 +13,8 @@ const {
 // Import authorization middleware
 const {
     authenticateToken,
-    authorizeRoles
+    authorizeRoles,
+    authorizeCustomerAccess
 } = require('../auth/auth.middleware');
 
 // All customers: Only for employees and administrators
@@ -28,7 +29,7 @@ router.get(
 router.get(
     '/:id',
     authenticateToken,
-    authorizeRoles('EMPLOYEE', 'ADMIN'),
+    authorizeCustomerAccess,
     getCustomerById
 );
 
@@ -56,7 +57,7 @@ router.delete(
 router.get(
     '/:id/accounts',
     authenticateToken,
-    authorizeRoles('EMPLOYEE', 'ADMIN'),
+   authorizeCustomerAccess,
     getCustomerAccounts
 );
 

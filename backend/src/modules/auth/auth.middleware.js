@@ -104,10 +104,44 @@ function authorizeRoles(...allowedRoles) {
     };
 }
 
+function authorizeCustomerAccess(req, res, next) {
+    const { id } = req.params;
+
+    // Validate the customer ID in the URL.
+    if (!/^[1-9]\d*$/.test(id)) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Invalid customer ID.'
+        });
+    }
+
+    // Employees and administrators can access customer records.
+    if (['EMPLOYEE', 'ADMIN'].includes(req.user.role)) {
+        return next();
+    }
+
+    // Customers can access only their own records.
+    if (
+        req.user.role === 'CUSTOMER' &&
+        String(req.user.customerId) === id
+    ) {
+        return next();
+    }
+
+    // Do not reveal whether another customer's record exists.
+    return res.status(404).json({
+        status: 'error',
+        message: 'Customer not found.'
+    });
+}
+
+
 module.exports = {
     authenticateToken,
     authorizeAccountOwner,
-    authorizeRoles
+    authorizeRoles,
+    authorizeCustomerAccess
 };
+
 
 

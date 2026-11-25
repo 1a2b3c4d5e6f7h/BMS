@@ -28,7 +28,7 @@ const {
 router.post(
     '/',
     authenticateToken,
-    authorizeRoles('ADMIN', 'EMPLOYEE', 'CUSTOMER'),
+    authorizeRoles('ADMIN'),
     createAccount
 );
 // Only employees and administrators can view all accounts
