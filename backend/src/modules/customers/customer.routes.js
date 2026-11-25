@@ -44,7 +44,7 @@ router.post(
 router.put(
     '/:id',
     authenticateToken,
-    authorizeRoles('EMPLOYEE', 'ADMIN'),
+    authorizeCustomerAccess,
     updateCustomer
 );
 router.delete(

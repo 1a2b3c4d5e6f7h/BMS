@@ -93,44 +93,109 @@ async function createCustomer(req, res) {
 }
 // ......update a customer by ID........!!!
 
+
 async function updateCustomer(req, res) {
+    const client = await pool.connect();
+
     try {
         const { id } = req.params;
         const { full_name, phone, email } = req.body;
 
-        // Validate required information.
-        if (!full_name || !full_name.trim()) {
+        // Validate full name.
+        if (
+            typeof full_name !== 'string' ||
+            !full_name.trim()
+        ) {
             return res.status(400).json({
                 status: 'error',
                 message: 'Full name is required.'
             });
         }
 
-        const result = await pool.query(
-            `UPDATE customers
-             SET full_name = $1,
-                 phone = $2,
-                 email = $3
-             WHERE customer_id = $4
-             RETURNING *`,
-            [full_name.trim(), phone || null, email || null, id]
-        );
+        // Validate phone if supplied.
+        if (
+            phone !== undefined &&
+            phone !== null &&
+            typeof phone !== 'string'
+        ) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid phone number.'
+            });
+        }
+
+        // Validate email if supplied.
+        if (
+            email !== undefined &&
+            (typeof email !== 'string' || !email.trim())
+        ) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid email address.'
+            });
+        }
+
+        const normalizedEmail = email === undefined
+            ? null
+            : email.trim().toLowerCase();
+
+        await client.query('BEGIN');
 
         // Check whether the customer exists.
-        if (result.rows.length === 0) {
+        const customer = await client.query(
+            `SELECT customer_id
+             FROM customers
+             WHERE customer_id = $1
+             FOR UPDATE`,
+            [id]
+        );
+
+        if (customer.rows.length === 0) {
+            await client.query('ROLLBACK');
+
             return res.status(404).json({
                 status: 'error',
                 message: 'Customer not found.'
             });
         }
 
-        res.status(200).json({
+        // Update customer information.
+        const result = await client.query(
+            `UPDATE customers
+             SET full_name = $1,
+                 phone = COALESCE($2, phone),
+                 email = COALESCE($3, email)
+             WHERE customer_id = $4
+             RETURNING *`,
+            [
+                full_name.trim(),
+                phone || null,
+                normalizedEmail,
+                id
+            ]
+        );
+
+        // Synchronize the login email when a new email is supplied.
+        if (normalizedEmail !== null) {
+            await client.query(
+                `UPDATE users
+                 SET email = $1
+                 WHERE customer_id = $2`,
+                [normalizedEmail, id]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        return res.status(200).json({
             status: 'success',
             message: 'Customer updated successfully.',
             data: result.rows[0]
         });
 
     } catch (error) {
+        await client.query('ROLLBACK');
+
         console.error('Failed to update customer:', error.message);
 
         if (error.code === '23505') {
@@ -140,12 +205,16 @@ async function updateCustomer(req, res) {
             });
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             status: 'error',
             message: 'Internal server error.'
         });
+
+    } finally {
+        client.release();
     }
 }
+
 //....Delete a customer by ID........!!!
 
 async function deleteCustomer(req, res) {
