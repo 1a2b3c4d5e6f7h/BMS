@@ -4,11 +4,18 @@ const pool = require('../../config/db');
 
 async function createAccount(req, res) {
     try {
-        const {
-            account_number,
-            customer_id,
-            account_type
-        } = req.body;
+       const {
+    account_number,
+    account_type
+} = req.body;
+
+let customer_id;
+
+if (req.user.role === 'CUSTOMER') {
+    customer_id = req.user.customerId;
+} else {
+    customer_id = req.body.customer_id;
+}
 
         // Validate required fields.
         if (!account_number || !customer_id || !account_type) {

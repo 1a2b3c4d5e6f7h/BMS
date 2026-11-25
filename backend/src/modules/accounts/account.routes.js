@@ -28,7 +28,7 @@ const {
 router.post(
     '/',
     authenticateToken,
-    authorizeRoles('ADMIN'),
+    authorizeRoles('ADMIN', 'EMPLOYEE', 'CUSTOMER'),
     createAccount
 );
 // Only employees and administrators can view all accounts
@@ -96,7 +96,7 @@ router.post(
 router.patch(
     '/:id/status',
     authenticateToken,
-    authorizeRoles('admin'),
+    authorizeRoles('ADMIN'),
     updateAccountStatus
 );
 
