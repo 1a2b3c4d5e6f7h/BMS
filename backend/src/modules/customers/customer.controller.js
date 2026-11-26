@@ -95,9 +95,10 @@ async function createCustomer(req, res) {
 
 
 async function updateCustomer(req, res) {
-    const client = await pool.connect();
+    let client;
 
     try {
+        client = await pool.connect();
         const { id } = req.params;
         const { full_name, phone, email } = req.body;
 
