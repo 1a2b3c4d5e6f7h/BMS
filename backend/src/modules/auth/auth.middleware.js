@@ -32,7 +32,7 @@ async function authenticateToken(req, res, next) {
     try {
         // Step 2: Retrieve the user's current database information.
         const result = await pool.query(
-            `SELECT user_id, customer_id, role, status
+            `SELECT user_id, customer_id, role, status, token_version
              FROM users
              WHERE user_id = $1`,
             [decoded.userId]
@@ -45,8 +45,15 @@ async function authenticateToken(req, res, next) {
                 message: 'User account not found.'
             });
         }
+         const user = result.rows[0];
+        // Step 4: Check if the token version matches the current version in the database.
+        if (decoded.tokenVersion !== user.token_version) {
+    return res.status(401).json({
+        status: 'error',
+        message: 'Token has been revoked. Please log in again.'
+    });
+}
 
-        const user = result.rows[0];
 
         // Step 4: Reject disabled accounts.
         if (user.status !== 'ACTIVE') {

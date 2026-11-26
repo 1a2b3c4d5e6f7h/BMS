@@ -126,7 +126,7 @@ async function login(req, res) {
         // 2. Find user by email
         const result = await pool.query(
             `SELECT user_id, customer_id, email,
-                    password_hash, role, status
+                    password_hash, role, status, token_version
              FROM users
              WHERE email = $1`,
             [email.trim().toLowerCase()]
@@ -167,7 +167,8 @@ async function login(req, res) {
             {
                 userId: user.user_id,
                 customerId: user.customer_id,
-                role: user.role
+                role: user.role,
+                tokenVersion: user.token_version
             },
             process.env.JWT_SECRET,
             {
@@ -186,6 +187,7 @@ async function login(req, res) {
                     customer_id: user.customer_id,
                     email: user.email,
                     role: user.role
+
                 }
             }
         });
