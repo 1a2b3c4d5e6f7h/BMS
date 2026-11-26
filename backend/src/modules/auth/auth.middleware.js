@@ -2,16 +2,14 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
 // Middleware to authenticate JWT token and attach user info to request
-function authenticateToken(req, res, next) {
-    // 1. Retrieve Authorization header
+
+async function authenticateToken(req, res, next) {
     const authHeader = req.headers.authorization;
 
-    // 2. Extract token
     const token = authHeader?.startsWith('Bearer ')
         ? authHeader.slice(7).trim()
         : null;
-       
-    // 3. Reject requests without a token
+
     if (!token) {
         return res.status(401).json({
             status: 'error',
@@ -19,28 +17,65 @@ function authenticateToken(req, res, next) {
         });
     }
 
-    // 4. Verify token
+    let decoded;
+
+    // Step 1: Verify JWT signature and expiration.
     try {
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+        return res.status(401).json({
+            status: 'error',
+            message: 'Invalid or expired token.'
+        });
+    }
+
+    try {
+        // Step 2: Retrieve the user's current database information.
+        const result = await pool.query(
+            `SELECT user_id, customer_id, role, status
+             FROM users
+             WHERE user_id = $1`,
+            [decoded.userId]
         );
 
-        // 5. Attach authenticated user to request
-        req.user = decoded;
+        // Step 3: Ensure the user still exists.
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'User account not found.'
+            });
+        }
 
-        // 6. Continue to the next middleware or controller
+        const user = result.rows[0];
+
+        // Step 4: Reject disabled accounts.
+        if (user.status !== 'ACTIVE') {
+            return res.status(403).json({
+                status: 'error',
+                message: 'Your account is disabled.'
+            });
+        }
+
+        // Step 5: Attach current database information.
+        req.user = {
+            userId: user.user_id,
+            customerId: user.customer_id,
+            role: user.role
+        };
+
+        // Step 6: Continue to the next middleware.
         next();
 
     } catch (error) {
-    console.error('JWT verification error:', error.message);
+        console.error('Authentication database check failed:', error.message);
 
-    return res.status(401).json({
-        status: 'error',
-        message: 'Invalid or expired token.'
-    });
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
 }
-}
+
 // middleware to ensure the authenticated user is the owner of the account being accessed
 async function authorizeAccountOwner(req, res, next) {
     const { id } = req.params;
