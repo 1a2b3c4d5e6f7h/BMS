@@ -21,7 +21,7 @@ const {
     authenticateToken,
     authorizeAccountOwner,
     authorizeRoles
-} = require('../auth/auth.middleware');
+} = require('../auth/auth.middleWare');
 
 // Account creation and listing need separate role-based protection.
 // Only administrators can create accounts

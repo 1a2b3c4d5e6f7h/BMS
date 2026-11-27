@@ -5,6 +5,16 @@ const {
     createTransfer
 } = require('./transfer.controller');
 
-router.post('/', createTransfer);
+const {
+    authenticateToken,
+    authorizeRoles
+} = require('../auth/auth.middleWare');
+
+router.post(
+    '/', 
+      authenticateToken,
+    authorizeRoles('CUSTOMER'),
+    createTransfer
+);
 
 module.exports = router;

@@ -60,7 +60,7 @@ async function createTransfer(req, res) {
 
         // 6. Find and lock both accounts.
         const accountsResult = await client.query(
-            `SELECT account_id, status, balance
+            `SELECT account_id, customer_id, status, balance
              FROM bank_accounts
              WHERE account_id IN ($1, $2)
              ORDER BY account_id
@@ -86,8 +86,18 @@ async function createTransfer(req, res) {
         const destinationAccount = accountsResult.rows.find(
             account => account.account_id.toString() === String(destination_account_id)
         );
+ //
+ // 8.1. Verify source account ownership.
+if (String(sourceAccount.customer_id) !== String(req.user.customerId)) {
+    await client.query('ROLLBACK');
+    transactionStarted = false;
 
-        // 8. Check source account status.
+    return res.status(404).json({
+        status: 'error',
+        message: 'Source account not found.'
+    });
+}
+        // 8.2. Check source account status.
         if (sourceAccount.status !== 'ACTIVE') {
             await client.query('ROLLBACK');
             transactionStarted = false;
