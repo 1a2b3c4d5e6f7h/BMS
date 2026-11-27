@@ -2,7 +2,7 @@
 const pool = require('../../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
+// Middleware to authenticate JWT token and attach user info to request
 async function register(req, res) {
     const { full_name, phone, email, password } = req.body;
 
@@ -201,5 +201,37 @@ async function login(req, res) {
         });
     }
 }
+// Logout function to invalidate all existing sessions by incrementing the token version
+async function logout(req, res) {
+    try {
+        const result = await pool.query(
+            `UPDATE users
+             SET token_version = token_version + 1
+             WHERE user_id = $1
+             RETURNING user_id`,
+            [req.user.userId]
+        );
 
-module.exports = { register, login };
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User account not found.'
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Logged out successfully. All existing sessions have been invalidated.'
+        });
+
+    } catch (error) {
+        console.error('Logout failed:', error.message);
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error.'
+        });
+    }
+}
+
+module.exports = { register, login, logout };
